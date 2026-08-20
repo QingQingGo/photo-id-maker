@@ -112,7 +112,7 @@
 
         <label>參考輪廓(對齊用,不影響輸出)</label>
         <select id="guideType">
-          <option value="headshot" selected>大頭照 / 證件照(近臉特寫)</option>
+          <option value="headshot" selected>大頭照 / 證件照(依護照規格校準)</option>
           <option value="halfbody">半身照(含肩膀、上半身)</option>
           <option value="none">不顯示輪廓</option>
         </select>
@@ -129,7 +129,7 @@
           <div><label>高 (cm)</label><input type="number" id="customH" value="4.5" step="0.1" min="1"></div>
         </div>
 
-        <p class="hint">在右方拖曳照片調整位置,滾輪或按鈕縮放,讓臉部落在框內置中。</p>
+        <p class="hint">在右方拖曳照片調整位置,滾輪或按鈕縮放,讓頭頂到下顎落在橢圓框內、左右置中(大頭照框線依外交部護照規格:頭長需佔畫面高度 70~80%,僅供對齊參考,實際仍以沖印/受理單位審核為準)。</p>
         <div class="btn-row">
           <button id="zoomOut">－ 縮小</button>
           <button id="zoomIn">＋ 放大</button>
@@ -424,10 +424,13 @@ document.getElementById('customColor').addEventListener('input', e=>{
 const guideType = document.getElementById('guideType');
 const guideHead = document.getElementById('guideHead');
 const guideShoulder = document.getElementById('guideShoulder');
+// 大頭照橢圓依「外交部領事事務局晶片護照照片規格」:
+// 照片 3.5×4.5cm,頭頂至下顎長度須介於 3.2~3.6cm(取中間值 3.4cm,約佔畫面高度 75.6%),左右置中
+// 參考:https://www.boca.gov.tw/np-16-1.html
 const GUIDE_PRESETS = {
-  headshot: { // 大頭照:臉部佔畫面大部分,肩線接近下緣
-    head: { cx:50, cy:40, rx:26, ry:32 },
-    shoulder: 'M 18 88 Q 50 68 82 88'
+  headshot: { // 大頭照/證件照:依護照規格頭長比例校準
+    head: { cx:50, cy:46, rx:27, ry:38 },
+    shoulder: 'M 15 96 Q 50 78 85 96'
   },
   halfbody: { // 半身照:頭部較小且偏上,肩膀/胸口線較寬、位置較低
     head: { cx:50, cy:24, rx:15, ry:18 },
