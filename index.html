@@ -110,6 +110,13 @@
           <input type="color" id="customColor" value="#ffffff" title="自訂顏色">
         </div>
 
+        <label>參考輪廓(對齊用,不影響輸出)</label>
+        <select id="guideType">
+          <option value="headshot" selected>大頭照 / 證件照(近臉特寫)</option>
+          <option value="halfbody">半身照(含肩膀、上半身)</option>
+          <option value="none">不顯示輪廓</option>
+        </select>
+
         <label>照片尺寸</label>
         <select id="photoSizePreset">
           <option value="2.8x3.6">1吋 (2.8 × 3.6 cm)</option>
@@ -130,7 +137,13 @@
         </div>
       </div>
       <div class="col" style="display:flex;justify-content:center;align-items:flex-start;">
-        <div id="stage"><img id="stageImg" src="" alt=""></div>
+        <div id="stage">
+          <img id="stageImg" src="" alt="">
+          <svg id="stageGuide" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;">
+            <ellipse id="guideHead" cx="50" cy="40" rx="26" ry="32" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="0.6" stroke-dasharray="2,2"/>
+            <path id="guideShoulder" d="M 18 88 Q 50 68 82 88" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="0.6" stroke-dasharray="2,2"/>
+          </svg>
+        </div>
       </div>
     </div>
     <div class="btn-row">
@@ -414,6 +427,36 @@ document.getElementById('customColor').addEventListener('input', e=>{
   renderStageComposite();
 });
 
+const guideType = document.getElementById('guideType');
+const guideHead = document.getElementById('guideHead');
+const guideShoulder = document.getElementById('guideShoulder');
+const GUIDE_PRESETS = {
+  headshot: { // 大頭照:臉部佔畫面大部分,肩線接近下緣
+    head: { cx:50, cy:40, rx:26, ry:32 },
+    shoulder: 'M 18 88 Q 50 68 82 88'
+  },
+  halfbody: { // 半身照:頭部較小且偏上,肩膀/胸口線較寬、位置較低
+    head: { cx:50, cy:24, rx:15, ry:18 },
+    shoulder: 'M 6 95 Q 50 55 94 95'
+  }
+};
+function applyGuide(){
+  const preset = GUIDE_PRESETS[guideType.value];
+  if(!preset){
+    guideHead.style.display = 'none';
+    guideShoulder.style.display = 'none';
+    return;
+  }
+  guideHead.style.display = '';
+  guideShoulder.style.display = '';
+  guideHead.setAttribute('cx', preset.head.cx);
+  guideHead.setAttribute('cy', preset.head.cy);
+  guideHead.setAttribute('rx', preset.head.rx);
+  guideHead.setAttribute('ry', preset.head.ry);
+  guideShoulder.setAttribute('d', preset.shoulder);
+}
+guideType.addEventListener('change', applyGuide);
+
 const photoSizePreset = document.getElementById('photoSizePreset');
 const customSizeRow = document.getElementById('customSizeRow');
 const customW = document.getElementById('customW');
@@ -695,6 +738,7 @@ btnPrint.addEventListener('click', ()=>{
 document.getElementById('backTo2').addEventListener('click', ()=>goStep(2));
 
 /* init */
+applyGuide();
 updatePhotoSize();
 updatePaperSize();
 </script>
