@@ -172,8 +172,8 @@
 
         <label>邊界 / 間距 (mm)</label>
         <div class="grid2">
-          <div><label>外邊界</label><input type="number" id="marginMM" value="5" step="0.5" min="0"></div>
-          <div><label>照片間距</label><input type="number" id="gapMM" value="2" step="0.5" min="0"></div>
+          <div><label>外邊界</label><input type="number" id="marginMM" value="3" step="0.5" min="0"></div>
+          <div><label>照片間距</label><input type="number" id="gapMM" value="1" step="0.5" min="0"></div>
         </div>
 
         <label>張數(自動計算最大可排數量,可手動減少)</label>
@@ -597,6 +597,17 @@ const customPaperRow = document.getElementById('customPaperRow');
 const paperWInput = document.getElementById('paperW');
 const paperHInput = document.getElementById('paperH');
 
+function gridCount(paperWcm, paperHcm){
+  const marginMM = parseFloat(marginMMInput.value)||0;
+  const gapMM = parseFloat(gapMMInput.value)||0;
+  const usableW = paperWcm*10 - 2*marginMM;
+  const usableH = paperHcm*10 - 2*marginMM;
+  const photoWmm = photoSizeCM.w*10, photoHmm = photoSizeCM.h*10;
+  const cols = Math.max(0, Math.floor((usableW + gapMM) / (photoWmm + gapMM)));
+  const rows = Math.max(0, Math.floor((usableH + gapMM) / (photoHmm + gapMM)));
+  return cols*rows;
+}
+
 function updatePaperSize(){
   if(paperPreset.value === 'custom'){
     customPaperRow.style.display = 'grid';
@@ -606,6 +617,14 @@ function updatePaperSize(){
     const [w,h] = paperPreset.value.split('x').map(Number);
     paperSizeCM = { w, h };
   }
+
+  // 自動選擇能排最多張的方向(直式/橫式),取代手動猜測
+  if(gridCount(paperSizeCM.h, paperSizeCM.w) > gridCount(paperSizeCM.w, paperSizeCM.h)){
+    paperSizeCM = { w: paperSizeCM.h, h: paperSizeCM.w };
+  }
+  paperWInput.value = paperSizeCM.w;
+  paperHInput.value = paperSizeCM.h;
+
   updateMaxCopies();
 }
 paperPreset.addEventListener('change', updatePaperSize);
