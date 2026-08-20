@@ -479,8 +479,25 @@ let compositeCanvas = null; // cutoutSourceCanvas composited with bgColor, used 
 let pan = {x:0, y:0}, userScale = 1, baseScale = 1;
 let dragging = false, dragStart = {x:0,y:0}, panStart = {x:0,y:0};
 
+function updateStageBackground(){
+  if(bgColor === 'transparent'){
+    stage.style.background =
+      'linear-gradient(45deg,#ddd 25%,transparent 25%),' +
+      'linear-gradient(-45deg,#ddd 25%,transparent 25%),' +
+      'linear-gradient(45deg,transparent 75%,#ddd 75%),' +
+      'linear-gradient(-45deg,transparent 75%,#ddd 75%)';
+    stage.style.backgroundSize = '16px 16px';
+    stage.style.backgroundPosition = '0 0,0 8px,8px -8px,-8px 0';
+  }else{
+    stage.style.background = bgColor;
+    stage.style.backgroundSize = '';
+    stage.style.backgroundPosition = '';
+  }
+}
+
 function renderStageComposite(){
   if(!cutoutSourceCanvas) return;
+  updateStageBackground();
   const iw = cutoutSourceCanvas.width, ih = cutoutSourceCanvas.height;
   const c = document.createElement('canvas');
   c.width = iw; c.height = ih;
