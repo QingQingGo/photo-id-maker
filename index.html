@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大頭照去背排版工具</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1f2430; --sub:#6b7280;
+    --line:#e3e5ea; --accent:#3563e9; --accent-ink:#ffffff; --danger:#e0453c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI","Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);}
+  header{padding:16px 24px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;}
+  header h1{font-size:18px;margin:0;}
+  .steps{display:flex;gap:8px;margin-left:auto;}
+  .step-pill{padding:4px 12px;border-radius:999px;font-size:13px;color:var(--sub);background:#eef0f4;}
+  .step-pill.active{background:var(--accent);color:var(--accent-ink);}
+  main{max-width:1100px;margin:0 auto;padding:24px;}
+  section.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:none;}
+  section.panel.active{display:block;}
+  .row{display:flex;gap:24px;flex-wrap:wrap;}
+  .col{flex:1;min-width:280px;}
+  h2{font-size:16px;margin:0 0 12px;}
+  .hint{color:var(--sub);font-size:13px;margin:4px 0 12px;}
+  .dropzone{border:2px dashed var(--line);border-radius:10px;padding:40px;text-align:center;color:var(--sub);cursor:pointer;}
+  .dropzone.drag{border-color:var(--accent);color:var(--accent);background:#eef2ff;}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 16px;font-size:14px;color:var(--ink);}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  button.primary:disabled{opacity:.5;cursor:not-allowed;}
+  button:hover:not(:disabled){filter:brightness(0.97);}
+  .btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .swatches{display:flex;gap:8px;margin:8px 0;}
+  .swatch{width:32px;height:32px;border-radius:6px;border:2px solid var(--line);cursor:pointer;}
+  .swatch.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;}
+  label{font-size:13px;color:var(--sub);display:block;margin:10px 0 4px;}
+  select,input[type=number],input[type=color]{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;font-size:14px;}
+  canvas{display:block;background:
+    linear-gradient(45deg,#ddd 25%,transparent 25%),
+    linear-gradient(-45deg,#ddd 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#ddd 75%),
+    linear-gradient(-45deg,transparent 75%,#ddd 75%);
+    background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;
+    border-radius:8px;border:1px solid var(--line);max-width:100%;}
+  #stage{position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--line);background:#ddd;touch-action:none;cursor:grab;margin:0 auto;}
+  #stage:active{cursor:grabbing;}
+  #stage img{position:absolute;top:0;left:0;user-select:none;pointer-events:none;}
+  .status{font-size:13px;color:var(--sub);margin-top:10px;min-height:18px;}
+  .status.err{color:var(--danger);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  #sheetPreviewWrap{overflow:auto;max-height:640px;text-align:center;background:#e9eaee;border-radius:8px;padding:10px;}
+  footer{text-align:center;color:var(--sub);font-size:12px;padding:24px;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{position:absolute;top:0;left:0;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🪪 大頭照去背排版工具</h1>
+  <div class="steps">
+    <div class="step-pill" data-step="1">1. 上傳/去背</div>
+    <div class="step-pill" data-step="2">2. 裁切定位</div>
+    <div class="step-pill" data-step="3">3. 排版輸出</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1 -->
+  <section class="panel" id="panel1">
+    <h2>Step 1 · 上傳照片並去背</h2>
+    <p class="hint">建議使用正面、光線均勻、背景單純的照片。支援 JPG / PNG / WebP / BMP / HEIC。</p>
+    <div class="row">
+      <div class="col">
+        <div class="dropzone" id="dropzone">
+          <div>將照片拖曳到此處,或點擊選擇檔案</div>
+          <input type="file" id="fileInput" accept="image/*,.heic,.heif" style="display:none;">
+        </div>
+        <div class="btn-row" style="align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink);margin:0;">
+            <input type="checkbox" id="chkRemoveBg" checked style="width:auto;"> 自動去背
+          </label>
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="btnProcess" disabled>下一步:照片處理</button>
+        </div>
+        <div class="status" id="step1Status"></div>
+      </div>
+      <div class="col">
+        <canvas id="previewCanvas" width="360" height="360"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="panel" id="panel2">
+    <h2>Step 2 · 背景色與裁切定位</h2>
+    <div class="row">
+      <div class="col">
+        <label>背景顏色</label>
+        <div class="swatches">
+          <div class="swatch selected" style="background:#ffffff" data-color="#ffffff" title="白底"></div>
+          <div class="swatch" style="background:#4285F4" data-color="#4285F4" title="藍底"></div>
+          <div class="swatch" style="background:#D93025" data-color="#D93025" title="紅底"></div>
+          <div class="swatch" style="background:#c8c8c8;background-image:linear-gradient(45deg,#eee 25%,transparent 25%),linear-gradient(-45deg,#eee 25%,transparent 25%);background-size:8px 8px;" data-color="transparent" title="透明"></div>
+          <input type="color" id="customColor" value="#ffffff" title="自訂顏色">
+        </div>
+
+        <label>照片尺寸</label>
+        <select id="photoSizePreset">
+          <option value="2.8x3.6">1吋 (2.8 × 3.6 cm)</option>
+          <option value="3.5x4.5" selected>2吋 / 證件照 (3.5 × 4.5 cm)</option>
+          <option value="3.3x4.8">護照用 (3.3 × 4.8 cm)</option>
+          <option value="custom">自訂...</option>
+        </select>
+        <div class="grid2" id="customSizeRow" style="display:none;">
+          <div><label>寬 (cm)</label><input type="number" id="customW" value="3.5" step="0.1" min="1"></div>
+          <div><label>高 (cm)</label><input type="number" id="customH" value="4.5" step="0.1" min="1"></div>
+        </div>
+
+        <p class="hint">在右方拖曳照片調整位置,滾輪或按鈕縮放,讓臉部落在框內置中。</p>
+        <div class="btn-row">
+          <button id="zoomOut">－ 縮小</button>
+          <button id="zoomIn">＋ 放大</button>
+          <button id="resetPos">重置位置</button>
+        </div>
+      </div>
+      <div class="col" style="display:flex;justify-content:center;align-items:flex-start;">
+        <div id="stage"><img id="stageImg" src="" alt=""></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button id="backTo1">← 上一步</button>
+      <button class="primary" id="toStep3">下一步:排版輸出 →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="panel" id="panel3">
+    <h2>Step 3 · 排版與輸出</h2>
+    <div class="row">
+      <div class="col">
+        <label>相紙尺寸</label>
+        <select id="paperPreset">
+          <option value="10.2x15.2" selected>4×6 吋 相片紙 (10.2×15.2 cm)</option>
+          <option value="12.7x17.8">5×7 吋 相片紙 (12.7×17.8 cm)</option>
+          <option value="21x29.7">A4 (21×29.7 cm)</option>
+          <option value="custom">自訂...</option>
+        </select>
+        <div class="grid2" id="customPaperRow" style="display:none;">
+          <div><label>寬 (cm)</label><input type="number" id="paperW" value="10.2" step="0.1" min="5"></div>
+          <div><label>高 (cm)</label><input type="number" id="paperH" value="15.2" step="0.1" min="5"></div>
+        </div>
+        <div class="btn-row"><button id="swapOrientation">↔ 旋轉相紙方向</button></div>
+
+        <label>邊界 / 間距 (mm)</label>
+        <div class="grid2">
+          <div><label>外邊界</label><input type="number" id="marginMM" value="5" step="0.5" min="0"></div>
+          <div><label>照片間距</label><input type="number" id="gapMM" value="2" step="0.5" min="0"></div>
+        </div>
+
+        <label>張數(自動計算最大可排數量,可手動減少)</label>
+        <input type="number" id="copyCount" value="1" min="1">
+        <div class="hint" id="maxCopiesHint"></div>
+
+        <div class="btn-row">
+          <button class="primary" id="btnGenerateSheet">產生排版預覽</button>
+        </div>
+
+        <label>輸出格式</label>
+        <select id="outputFormat">
+          <option value="png" selected>PNG(無損,檔案較大)</option>
+          <option value="jpg">JPG(檔案較小)</option>
+          <option value="pdf">PDF(適合送印店 / 線上沖印)</option>
+        </select>
+
+        <div class="btn-row">
+          <button id="btnDownload" disabled>⬇ 下載</button>
+          <button id="btnPrint" disabled>🖨 列印</button>
+        </div>
+        <div class="status" id="step3Status"></div>
+      </div>
+      <div class="col">
+        <div id="sheetPreviewWrap">
+          <canvas id="sheetCanvas" width="10" height="10"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button id="backTo2">← 上一步</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>所有影像處理皆在你的瀏覽器內完成,照片不會上傳到任何伺服器。</footer>
+
+<div id="printArea" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="module">
+import { ImageSegmenter, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+/* ---------- state ---------- */
+let originalImg = null;          // HTMLImageElement, original upload
+let cutoutSourceCanvas = null;   // canvas: original RGBA with alpha=mask (background removed)
+let segmenter = null;
+let bgColor = "#ffffff";
+let photoSizeCM = { w: 3.5, h: 4.5 };
+let paperSizeCM = { w: 10.2, h: 15.2 };
+let croppedResultCanvas = null;  // final cropped photo at print resolution (per single copy)
+
+const DPI = 300;
+const cmToPx = cm => Math.round(cm * 10 * (DPI / 25.4));
+
+/* ---------- step nav ---------- */
+const panels = { 1: document.getElementById('panel1'), 2: document.getElementById('panel2'), 3: document.getElementById('panel3') };
+const pills = document.querySelectorAll('.step-pill');
+function goStep(n){
+  Object.values(panels).forEach(p=>p.classList.remove('active'));
+  panels[n].classList.add('active');
+  pills.forEach(p=>p.classList.toggle('active', +p.dataset.step===n));
+}
+goStep(1);
+
+/* ---------- Step 1: upload ---------- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const previewCanvas = document.getElementById('previewCanvas');
+const pctx = previewCanvas.getContext('2d');
+const btnProcess = document.getElementById('btnProcess');
+const chkRemoveBg = document.getElementById('chkRemoveBg');
+const step1Status = document.getElementById('step1Status');
+
+dropzone.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('dragover', e=>{e.preventDefault();dropzone.classList.add('drag');});
+dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault(); dropzone.classList.remove('drag');
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+async function loadFile(file){
+  step1Status.className = 'status';
+  let workingBlob = file;
+  const isHeic = /image\/hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+
+  if(isHeic){
+    step1Status.textContent = '偵測到 HEIC 格式,轉換中...';
+    try{
+      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      workingBlob = Array.isArray(converted) ? converted[0] : converted;
+    }catch(err){
+      console.error(err);
+      step1Status.textContent = 'HEIC 轉換失敗:' + err.message + '(請改用 JPG/PNG 上傳)';
+      step1Status.className = 'status err';
+      return;
+    }
+  }
+
+  const url = URL.createObjectURL(workingBlob);
+  const img = new Image();
+  img.onload = ()=>{
+    originalImg = img;
+    cutoutSourceCanvas = null;
+    drawFit(pctx, previewCanvas, img);
+    btnProcess.disabled = false;
+    step1Status.textContent = `已載入:${file.name} (${img.width}×${img.height})`;
+    step1Status.className = 'status';
+  };
+  img.onerror = ()=>{
+    step1Status.textContent = '圖片讀取失敗,請確認檔案格式是否支援';
+    step1Status.className = 'status err';
+  };
+  img.src = url;
+}
+
+function drawFit(ctx, canvas, imgOrCanvas, alphaBg){
+  const cw = canvas.width, ch = canvas.height;
+  ctx.clearRect(0,0,cw,ch);
+  const iw = imgOrCanvas.width || imgOrCanvas.naturalWidth;
+  const ih = imgOrCanvas.height || imgOrCanvas.naturalHeight;
+  const scale = Math.min(cw/iw, ch/ih);
+  const dw = iw*scale, dh = ih*scale;
+  const dx = (cw-dw)/2, dy = (ch-dh)/2;
+  ctx.drawImage(imgOrCanvas, dx, dy, dw, dh);
+}
+
+async function ensureSegmenter(){
+  if(segmenter) return segmenter;
+  step1Status.textContent = '正在下載去背模型(僅需一次)...';
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+  );
+  segmenter = await ImageSegmenter.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite",
+      delegate: "GPU"
+    },
+    outputCategoryMask: false,
+    outputConfidenceMasks: true,
+  });
+  return segmenter;
+}
+
+function useOriginalAsCutout(){
+  const c = document.createElement('canvas');
+  c.width = originalImg.naturalWidth; c.height = originalImg.naturalHeight;
+  c.getContext('2d').drawImage(originalImg,0,0);
+  cutoutSourceCanvas = c;
+}
+
+function advanceToStep2(){
+  goStep(2);
+  setupStage();
+}
+
+btnProcess.addEventListener('click', async ()=>{
+  if(!originalImg) return;
+
+  if(!chkRemoveBg.checked){
+    useOriginalAsCutout();
+    drawFit(pctx, previewCanvas, cutoutSourceCanvas);
+    step1Status.textContent = '已略過去背,將直接使用原圖';
+    step1Status.className = 'status';
+    advanceToStep2();
+    return;
+  }
+
+  btnProcess.disabled = true;
+  step1Status.className = 'status';
+  try{
+    const seg = await ensureSegmenter();
+    step1Status.textContent = '去背處理中...';
+
+    const iw = originalImg.naturalWidth, ih = originalImg.naturalHeight;
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = iw; srcCanvas.height = ih;
+    srcCanvas.getContext('2d').drawImage(originalImg, 0, 0);
+
+    const result = seg.segment(srcCanvas);
+    const mask = result.confidenceMasks[0]; // MPMask, foreground probability
+    const mw = mask.width, mh = mask.height;
+    const maskFloats = mask.getAsFloat32Array();
+
+    // put mask into a small canvas as grayscale, then let drawImage upscale w/ smoothing
+    const maskSmall = document.createElement('canvas');
+    maskSmall.width = mw; maskSmall.height = mh;
+    const mctx = maskSmall.getContext('2d');
+    const mImgData = mctx.createImageData(mw, mh);
+    for(let i=0;i<maskFloats.length;i++){
+      const v = Math.max(0, Math.min(1, maskFloats[i])) * 255;
+      mImgData.data[i*4+0] = v;
+      mImgData.data[i*4+1] = v;
+      mImgData.data[i*4+2] = v;
+      mImgData.data[i*4+3] = 255;
+    }
+    mctx.putImageData(mImgData, 0, 0);
+
+    const maskFull = document.createElement('canvas');
+    maskFull.width = iw; maskFull.height = ih;
+    const mfctx = maskFull.getContext('2d');
+    mfctx.imageSmoothingEnabled = true;
+    mfctx.imageSmoothingQuality = 'high';
+    mfctx.drawImage(maskSmall, 0, 0, mw, mh, 0, 0, iw, ih);
+    const maskData = mfctx.getImageData(0,0,iw,ih).data;
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = iw; outCanvas.height = ih;
+    const octx = outCanvas.getContext('2d');
+    octx.drawImage(srcCanvas, 0, 0);
+    const outData = octx.getImageData(0,0,iw,ih);
+    for(let p=0;p<iw*ih;p++){
+      outData.data[p*4+3] = maskData[p*4]; // use luminance as alpha
+    }
+    octx.putImageData(outData, 0, 0);
+
+    cutoutSourceCanvas = outCanvas;
+    mask.close && mask.close();
+
+    drawFit(pctx, previewCanvas, outCanvas);
+    step1Status.textContent = '去背完成 ✓';
+    advanceToStep2();
+  }catch(err){
+    console.error(err);
+    step1Status.textContent = '去背失敗:' + err.message + '(請確認網路可連線至 CDN,或改用原圖繼續)';
+    step1Status.className = 'status err';
+    cutoutSourceCanvas = null;
+  }finally{
+    btnProcess.disabled = false;
+  }
+});
+
+/* ---------- Step 2: bg color + crop ---------- */
+document.querySelectorAll('.swatch').forEach(sw=>{
+  sw.addEventListener('click', ()=>{
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+    sw.classList.add('selected');
+    bgColor = sw.dataset.color;
+    renderStageComposite();
+  });
+});
+document.getElementById('customColor').addEventListener('input', e=>{
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+  bgColor = e.target.value;
+  renderStageComposite();
+});
+
+const photoSizePreset = document.getElementById('photoSizePreset');
+const customSizeRow = document.getElementById('customSizeRow');
+const customW = document.getElementById('customW');
+const customH = document.getElementById('customH');
+function updatePhotoSize(){
+  if(photoSizePreset.value === 'custom'){
+    customSizeRow.style.display = 'grid';
+    photoSizeCM = { w: parseFloat(customW.value)||3.5, h: parseFloat(customH.value)||4.5 };
+  }else{
+    customSizeRow.style.display = 'none';
+    const [w,h] = photoSizePreset.value.split('x').map(Number);
+    photoSizeCM = { w, h };
+  }
+  setupStage();
+}
+photoSizePreset.addEventListener('change', updatePhotoSize);
+customW.addEventListener('input', updatePhotoSize);
+customH.addEventListener('input', updatePhotoSize);
+
+const stage = document.getElementById('stage');
+const stageImg = document.getElementById('stageImg');
+let compositeCanvas = null; // cutoutSourceCanvas composited with bgColor, used as drag image source
+let pan = {x:0, y:0}, userScale = 1, baseScale = 1;
+let dragging = false, dragStart = {x:0,y:0}, panStart = {x:0,y:0};
+
+function renderStageComposite(){
+  if(!cutoutSourceCanvas) return;
+  const iw = cutoutSourceCanvas.width, ih = cutoutSourceCanvas.height;
+  const c = document.createElement('canvas');
+  c.width = iw; c.height = ih;
+  const cctx = c.getContext('2d');
+  if(bgColor !== 'transparent'){
+    cctx.fillStyle = bgColor;
+    cctx.fillRect(0,0,iw,ih);
+  }
+  cctx.drawImage(cutoutSourceCanvas, 0, 0);
+  compositeCanvas = c;
+  stageImg.src = c.toDataURL('image/png');
+}
+
+function setupStage(){
+  if(!cutoutSourceCanvas) return;
+  renderStageComposite();
+  const targetRatio = photoSizeCM.w / photoSizeCM.h;
+  const maxH = 420;
+  const availW = Math.max(200, stage.parentElement.clientWidth || 420);
+  let stageH = maxH;
+  let stageW = Math.round(stageH * targetRatio);
+  if(stageW > availW){
+    stageW = availW;
+    stageH = Math.round(stageW / targetRatio);
+  }
+  stage.style.width = stageW + 'px';
+  stage.style.height = stageH + 'px';
+
+  const iw = cutoutSourceCanvas.width, ih = cutoutSourceCanvas.height;
+  baseScale = Math.max(stageW/iw, stageH/ih);
+  userScale = 1;
+  pan = {x:0, y:0};
+  applyTransform();
+}
+
+function applyTransform(){
+  const iw = cutoutSourceCanvas.width, ih = cutoutSourceCanvas.height;
+  const scale = baseScale * userScale;
+  const dw = iw*scale, dh = ih*scale;
+  const stageW = stage.clientWidth, stageH = stage.clientHeight;
+  const left = (stageW - dw)/2 + pan.x;
+  const top = (stageH - dh)/2 + pan.y;
+  stageImg.style.width = dw + 'px';
+  stageImg.style.height = dh + 'px';
+  stageImg.style.left = left + 'px';
+  stageImg.style.top = top + 'px';
+}
+
+stage.addEventListener('pointerdown', e=>{
+  dragging = true;
+  dragStart = {x:e.clientX, y:e.clientY};
+  panStart = {...pan};
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  pan.x = panStart.x + (e.clientX - dragStart.x);
+  pan.y = panStart.y + (e.clientY - dragStart.y);
+  applyTransform();
+});
+stage.addEventListener('pointerup', ()=>dragging=false);
+stage.addEventListener('pointerleave', ()=>dragging=false);
+stage.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.05 : 0.05;
+  userScale = Math.max(1, Math.min(5, userScale + delta));
+  applyTransform();
+}, {passive:false});
+
+document.getElementById('zoomIn').addEventListener('click', ()=>{ userScale = Math.min(5, userScale+0.1); applyTransform(); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ userScale = Math.max(1, userScale-0.1); applyTransform(); });
+document.getElementById('resetPos').addEventListener('click', ()=>{ userScale=1; pan={x:0,y:0}; applyTransform(); });
+
+document.getElementById('backTo1').addEventListener('click', ()=>goStep(1));
+document.getElementById('toStep3').addEventListener('click', ()=>{
+  renderCroppedResult();
+  goStep(3);
+  updateMaxCopies();
+});
+
+function renderCroppedResult(){
+  const targetPxW = cmToPx(photoSizeCM.w);
+  const targetPxH = cmToPx(photoSizeCM.h);
+  const out = document.createElement('canvas');
+  out.width = targetPxW; out.height = targetPxH;
+  const octx = out.getContext('2d');
+  if(bgColor !== 'transparent'){
+    octx.fillStyle = bgColor;
+    octx.fillRect(0,0,targetPxW,targetPxH);
+  }
+
+  const iw = cutoutSourceCanvas.width, ih = cutoutSourceCanvas.height;
+  const scale = baseScale * userScale;
+  const stageW = stage.clientWidth, stageH = stage.clientHeight;
+  const dw = iw*scale, dh = ih*scale;
+  const imgLeft = (stageW - dw)/2 + pan.x;
+  const imgTop = (stageH - dh)/2 + pan.y;
+
+  const sx = (0 - imgLeft) / scale;
+  const sy = (0 - imgTop) / scale;
+  const sW = stageW / scale;
+  const sH = stageH / scale;
+
+  octx.drawImage(cutoutSourceCanvas, sx, sy, sW, sH, 0, 0, targetPxW, targetPxH);
+  croppedResultCanvas = out;
+}
+
+/* ---------- Step 3: layout ---------- */
+const paperPreset = document.getElementById('paperPreset');
+const customPaperRow = document.getElementById('customPaperRow');
+const paperWInput = document.getElementById('paperW');
+const paperHInput = document.getElementById('paperH');
+
+function updatePaperSize(){
+  if(paperPreset.value === 'custom'){
+    customPaperRow.style.display = 'grid';
+    paperSizeCM = { w: parseFloat(paperWInput.value)||10.2, h: parseFloat(paperHInput.value)||15.2 };
+  }else{
+    customPaperRow.style.display = 'none';
+    const [w,h] = paperPreset.value.split('x').map(Number);
+    paperSizeCM = { w, h };
+  }
+  updateMaxCopies();
+}
+paperPreset.addEventListener('change', updatePaperSize);
+paperWInput.addEventListener('input', updatePaperSize);
+paperHInput.addEventListener('input', updatePaperSize);
+
+document.getElementById('swapOrientation').addEventListener('click', ()=>{
+  paperSizeCM = { w: paperSizeCM.h, h: paperSizeCM.w };
+  paperWInput.value = paperSizeCM.w;
+  paperHInput.value = paperSizeCM.h;
+  updateMaxCopies();
+});
+
+const marginMMInput = document.getElementById('marginMM');
+const gapMMInput = document.getElementById('gapMM');
+const copyCountInput = document.getElementById('copyCount');
+const maxCopiesHint = document.getElementById('maxCopiesHint');
+[marginMMInput, gapMMInput].forEach(el=>el.addEventListener('input', updateMaxCopies));
+
+function computeGrid(){
+  const marginMM = parseFloat(marginMMInput.value)||0;
+  const gapMM = parseFloat(gapMMInput.value)||0;
+  const paperWmm = paperSizeCM.w*10, paperHmm = paperSizeCM.h*10;
+  const photoWmm = photoSizeCM.w*10, photoHmm = photoSizeCM.h*10;
+  const usableW = paperWmm - 2*marginMM;
+  const usableH = paperHmm - 2*marginMM;
+  const cols = Math.max(0, Math.floor((usableW + gapMM) / (photoWmm + gapMM)));
+  const rows = Math.max(0, Math.floor((usableH + gapMM) / (photoHmm + gapMM)));
+  return {cols, rows, marginMM, gapMM, paperWmm, paperHmm, photoWmm, photoHmm};
+}
+
+function updateMaxCopies(){
+  const g = computeGrid();
+  const max = g.cols*g.rows;
+  maxCopiesHint.textContent = max>0 ? `此排版最多可放 ${max} 張 (${g.cols}欄 × ${g.rows}列)` : '相紙太小,無法放入任何一張照片,請調整尺寸';
+  copyCountInput.max = max;
+  if(+copyCountInput.value > max || +copyCountInput.value < 1) copyCountInput.value = Math.max(1,max);
+}
+
+const sheetCanvas = document.getElementById('sheetCanvas');
+const btnDownload = document.getElementById('btnDownload');
+const btnPrint = document.getElementById('btnPrint');
+const step3Status = document.getElementById('step3Status');
+
+document.getElementById('btnGenerateSheet').addEventListener('click', ()=>{
+  if(!croppedResultCanvas){ step3Status.textContent='請先完成裁切定位'; step3Status.className='status err'; return; }
+  const g = computeGrid();
+  const max = g.cols*g.rows;
+  if(max<=0){ step3Status.textContent='相紙太小,無法排版'; step3Status.className='status err'; return; }
+  const count = Math.min(max, Math.max(1, +copyCountInput.value||1));
+
+  const pxPerMM = DPI/25.4;
+  const sheetPxW = Math.round(g.paperWmm*pxPerMM);
+  const sheetPxH = Math.round(g.paperHmm*pxPerMM);
+  sheetCanvas.width = sheetPxW; sheetCanvas.height = sheetPxH;
+  const sctx = sheetCanvas.getContext('2d');
+  sctx.fillStyle = '#ffffff';
+  sctx.fillRect(0,0,sheetPxW,sheetPxH);
+
+  const photoPxW = Math.round(g.photoWmm*pxPerMM);
+  const photoPxH = Math.round(g.photoHmm*pxPerMM);
+  const gapPx = Math.round(g.gapMM*pxPerMM);
+
+  const gridPxW = g.cols*photoPxW + (g.cols-1)*gapPx;
+  const gridPxH = g.rows*photoPxH + (g.rows-1)*gapPx;
+  const startX = Math.round((sheetPxW - gridPxW)/2);
+  const startY = Math.round((sheetPxH - gridPxH)/2);
+
+  let placed = 0;
+  outer:
+  for(let r=0;r<g.rows;r++){
+    for(let c=0;c<g.cols;c++){
+      if(placed>=count) break outer;
+      const x = startX + c*(photoPxW+gapPx);
+      const y = startY + r*(photoPxH+gapPx);
+      sctx.drawImage(croppedResultCanvas, x, y, photoPxW, photoPxH);
+      sctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      sctx.setLineDash([4,3]);
+      sctx.lineWidth = 1;
+      sctx.strokeRect(x+0.5, y+0.5, photoPxW-1, photoPxH-1);
+      placed++;
+    }
+  }
+
+  step3Status.textContent = `已排版 ${placed} 張,相紙 ${paperSizeCM.w}×${paperSizeCM.h} cm,輸出解析度 ${DPI} DPI`;
+  step3Status.className = 'status';
+  btnDownload.disabled = false;
+  btnPrint.disabled = false;
+});
+
+function downloadDataUrl(dataUrl, filename){
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = dataUrl;
+  link.click();
+}
+
+const outputFormat = document.getElementById('outputFormat');
+
+btnDownload.addEventListener('click', ()=>{
+  const fmt = outputFormat.value;
+  const base = `大頭照排版_${photoSizeCM.w}x${photoSizeCM.h}cm`;
+
+  if(fmt === 'png'){
+    downloadDataUrl(sheetCanvas.toDataURL('image/png'), base + '.png');
+  }else if(fmt === 'jpg'){
+    downloadDataUrl(sheetCanvas.toDataURL('image/jpeg', 0.95), base + '.jpg');
+  }else if(fmt === 'pdf'){
+    const { jsPDF } = window.jspdf;
+    const orientation = paperSizeCM.w > paperSizeCM.h ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ orientation, unit: 'cm', format: [paperSizeCM.w, paperSizeCM.h] });
+    const imgData = sheetCanvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, paperSizeCM.w, paperSizeCM.h);
+    pdf.save(base + '.pdf');
+  }
+});
+
+btnPrint.addEventListener('click', ()=>{
+  const dataUrl = sheetCanvas.toDataURL('image/png');
+  const printArea = document.getElementById('printArea');
+  printArea.innerHTML = `<img src="${dataUrl}" style="width:${paperSizeCM.w}cm;height:${paperSizeCM.h}cm;">`;
+  const styleId = 'printPageStyle';
+  let style = document.getElementById(styleId);
+  if(!style){ style = document.createElement('style'); style.id = styleId; document.head.appendChild(style); }
+  style.textContent = `@page { size: ${paperSizeCM.w}cm ${paperSizeCM.h}cm; margin: 0; }`;
+  printArea.style.display = 'block';
+  setTimeout(()=>{ window.print(); printArea.style.display='none'; }, 100);
+});
+
+document.getElementById('backTo2').addEventListener('click', ()=>goStep(2));
+
+/* init */
+updatePhotoSize();
+updatePaperSize();
+</script>
+</body>
+</html>
