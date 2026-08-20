@@ -170,12 +170,6 @@
         </div>
         <div class="btn-row"><button id="swapOrientation">↔ 旋轉相紙方向</button></div>
 
-        <label>邊界 / 間距 (mm)</label>
-        <div class="grid2">
-          <div><label>外邊界</label><input type="number" id="marginMM" value="3" step="0.5" min="0"></div>
-          <div><label>照片間距</label><input type="number" id="gapMM" value="1" step="0.5" min="0"></div>
-        </div>
-
         <label>張數(自動計算最大可排數量,可手動減少)</label>
         <input type="number" id="copyCount" value="1" min="1">
         <div class="hint" id="maxCopiesHint"></div>
@@ -597,9 +591,13 @@ const customPaperRow = document.getElementById('customPaperRow');
 const paperWInput = document.getElementById('paperW');
 const paperHInput = document.getElementById('paperH');
 
+// 沖印店常用排版習慣:外邊界 3mm、照片間距 1mm(裁切留白)
+const PRINT_MARGIN_MM = 3;
+const PRINT_GAP_MM = 1;
+
 function gridCount(paperWcm, paperHcm){
-  const marginMM = parseFloat(marginMMInput.value)||0;
-  const gapMM = parseFloat(gapMMInput.value)||0;
+  const marginMM = PRINT_MARGIN_MM;
+  const gapMM = PRINT_GAP_MM;
   const usableW = paperWcm*10 - 2*marginMM;
   const usableH = paperHcm*10 - 2*marginMM;
   const photoWmm = photoSizeCM.w*10, photoHmm = photoSizeCM.h*10;
@@ -638,15 +636,12 @@ document.getElementById('swapOrientation').addEventListener('click', ()=>{
   updateMaxCopies();
 });
 
-const marginMMInput = document.getElementById('marginMM');
-const gapMMInput = document.getElementById('gapMM');
 const copyCountInput = document.getElementById('copyCount');
 const maxCopiesHint = document.getElementById('maxCopiesHint');
-[marginMMInput, gapMMInput].forEach(el=>el.addEventListener('input', updateMaxCopies));
 
 function computeGrid(){
-  const marginMM = parseFloat(marginMMInput.value)||0;
-  const gapMM = parseFloat(gapMMInput.value)||0;
+  const marginMM = PRINT_MARGIN_MM;
+  const gapMM = PRINT_GAP_MM;
   const paperWmm = paperSizeCM.w*10, paperHmm = paperSizeCM.h*10;
   const photoWmm = photoSizeCM.w*10, photoHmm = photoSizeCM.h*10;
   const usableW = paperWmm - 2*marginMM;
