@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://qingqinggo.github.io/photo-id-maker/sitemap.xml
