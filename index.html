@@ -611,9 +611,9 @@ document.getElementById('btnDownloadSingle').addEventListener('click', ()=>{
     fctx.fillStyle = '#ffffff';
     fctx.fillRect(0, 0, flat.width, flat.height);
     fctx.drawImage(croppedResultCanvas, 0, 0);
-    downloadDataUrl(flat.toDataURL('image/jpeg', 0.95), base + '.jpg');
+    downloadCanvas(flat, base + '.jpg', 'image/jpeg', 0.95);
   }else{
-    downloadDataUrl(croppedResultCanvas.toDataURL('image/png'), base + '.png');
+    downloadCanvas(croppedResultCanvas, base + '.png', 'image/png');
   }
 });
 
@@ -769,11 +769,19 @@ document.getElementById('btnGenerateSheet').addEventListener('click', ()=>{
   btnPrint.disabled = false;
 });
 
-function downloadDataUrl(dataUrl, filename){
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
+function downloadCanvas(canvas, filename, mimeType, quality){
+  canvas.toBlob((blob)=>{
+    if(!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }, mimeType, quality);
 }
 
 const outputFormat = document.getElementById('outputFormat');
@@ -783,9 +791,9 @@ btnDownload.addEventListener('click', ()=>{
   const base = `大頭照排版_${photoSizeCM.w}x${photoSizeCM.h}cm`;
 
   if(fmt === 'png'){
-    downloadDataUrl(sheetCanvas.toDataURL('image/png'), base + '.png');
+    downloadCanvas(sheetCanvas, base + '.png', 'image/png');
   }else if(fmt === 'jpg'){
-    downloadDataUrl(sheetCanvas.toDataURL('image/jpeg', 0.95), base + '.jpg');
+    downloadCanvas(sheetCanvas, base + '.jpg', 'image/jpeg', 0.95);
   }else if(fmt === 'pdf'){
     const { jsPDF } = window.jspdf;
     const orientation = paperSizeCM.w > paperSizeCM.h ? 'landscape' : 'portrait';
