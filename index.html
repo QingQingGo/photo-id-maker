@@ -159,8 +159,12 @@
         </div>
       </div>
     </div>
-    <div class="btn-row">
+    <div class="btn-row" style="align-items:center;">
       <button id="backTo1">← 上一步</button>
+      <select id="singleDownloadFormat" style="width:auto;">
+        <option value="png" selected>PNG</option>
+        <option value="jpg">JPG</option>
+      </select>
       <button id="btnDownloadSingle">⬇ 直接下載</button>
       <button class="primary" id="toStep3">下一步:排版輸出 →</button>
     </div>
@@ -595,7 +599,22 @@ document.getElementById('toStep3').addEventListener('click', ()=>{
 document.getElementById('btnDownloadSingle').addEventListener('click', ()=>{
   if(!cutoutSourceCanvas) return;
   renderCroppedResult();
-  downloadDataUrl(croppedResultCanvas.toDataURL('image/png'), `大頭照_${photoSizeCM.w}x${photoSizeCM.h}cm.png`);
+  const fmt = document.getElementById('singleDownloadFormat').value;
+  const base = `大頭照_${photoSizeCM.w}x${photoSizeCM.h}cm`;
+
+  if(fmt === 'jpg'){
+    // JPG 不支援透明,若背景選了透明則先鋪白底再輸出
+    const flat = document.createElement('canvas');
+    flat.width = croppedResultCanvas.width;
+    flat.height = croppedResultCanvas.height;
+    const fctx = flat.getContext('2d');
+    fctx.fillStyle = '#ffffff';
+    fctx.fillRect(0, 0, flat.width, flat.height);
+    fctx.drawImage(croppedResultCanvas, 0, 0);
+    downloadDataUrl(flat.toDataURL('image/jpeg', 0.95), base + '.jpg');
+  }else{
+    downloadDataUrl(croppedResultCanvas.toDataURL('image/png'), base + '.png');
+  }
 });
 
 function renderCroppedResult(){
