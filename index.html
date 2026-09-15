@@ -161,6 +161,7 @@
     </div>
     <div class="btn-row">
       <button id="backTo1">← 上一步</button>
+      <button id="btnDownloadSingle">⬇ 直接下載這張照片</button>
       <button class="primary" id="toStep3">下一步:排版輸出 →</button>
     </div>
   </section>
@@ -589,6 +590,12 @@ document.getElementById('toStep3').addEventListener('click', ()=>{
   renderCroppedResult();
   goStep(3);
   updateMaxCopies();
+});
+
+document.getElementById('btnDownloadSingle').addEventListener('click', ()=>{
+  if(!cutoutSourceCanvas) return;
+  renderCroppedResult();
+  downloadDataUrl(croppedResultCanvas.toDataURL('image/png'), `大頭照_${photoSizeCM.w}x${photoSizeCM.h}cm.png`);
 });
 
 function renderCroppedResult(){
