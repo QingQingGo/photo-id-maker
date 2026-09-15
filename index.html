@@ -159,13 +159,10 @@
         </div>
       </div>
     </div>
-    <div class="btn-row" style="align-items:center;">
+    <div class="btn-row">
       <button id="backTo1">← 上一步</button>
-      <select id="singleDownloadFormat" style="width:auto;">
-        <option value="png" selected>PNG</option>
-        <option value="jpg">JPG</option>
-      </select>
-      <button id="btnDownloadSingle">⬇ 直接下載</button>
+      <button id="btnDownloadSinglePng">⬇ 下載 PNG</button>
+      <button id="btnDownloadSingleJpg">⬇ 下載 JPG</button>
       <button class="primary" id="toStep3">下一步:排版輸出 →</button>
     </div>
   </section>
@@ -596,25 +593,26 @@ document.getElementById('toStep3').addEventListener('click', ()=>{
   updateMaxCopies();
 });
 
-document.getElementById('btnDownloadSingle').addEventListener('click', ()=>{
+document.getElementById('btnDownloadSinglePng').addEventListener('click', ()=>{
   if(!cutoutSourceCanvas) return;
   renderCroppedResult();
-  const fmt = document.getElementById('singleDownloadFormat').value;
   const base = `大頭照_${photoSizeCM.w}x${photoSizeCM.h}cm`;
+  downloadCanvas(croppedResultCanvas, base + '.png', 'image/png');
+});
 
-  if(fmt === 'jpg'){
-    // JPG 不支援透明,若背景選了透明則先鋪白底再輸出
-    const flat = document.createElement('canvas');
-    flat.width = croppedResultCanvas.width;
-    flat.height = croppedResultCanvas.height;
-    const fctx = flat.getContext('2d');
-    fctx.fillStyle = '#ffffff';
-    fctx.fillRect(0, 0, flat.width, flat.height);
-    fctx.drawImage(croppedResultCanvas, 0, 0);
-    downloadCanvas(flat, base + '.jpg', 'image/jpeg', 0.95);
-  }else{
-    downloadCanvas(croppedResultCanvas, base + '.png', 'image/png');
-  }
+document.getElementById('btnDownloadSingleJpg').addEventListener('click', ()=>{
+  if(!cutoutSourceCanvas) return;
+  renderCroppedResult();
+  const base = `大頭照_${photoSizeCM.w}x${photoSizeCM.h}cm`;
+  // JPG 不支援透明,若背景選了透明則先鋪白底再輸出
+  const flat = document.createElement('canvas');
+  flat.width = croppedResultCanvas.width;
+  flat.height = croppedResultCanvas.height;
+  const fctx = flat.getContext('2d');
+  fctx.fillStyle = '#ffffff';
+  fctx.fillRect(0, 0, flat.width, flat.height);
+  fctx.drawImage(croppedResultCanvas, 0, 0);
+  downloadCanvas(flat, base + '.jpg', 'image/jpeg', 0.95);
 });
 
 function renderCroppedResult(){
